@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>International Buyer Discovery & Outreach Portal</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    body { background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .hero-banner { background: #0f172a; color: white; padding: 2.2rem 0; margin-bottom: 2rem; }
+    .card { border-radius: 8px; border: 1px solid #e2e8f0; }
+    .badge-soft { background-color: #e0f2fe; color: #0369a1; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+  <div class="hero-banner">
+    <div class="container">
+      <h2 class="fw-bold mb-1"><i class="bi bi-globe2 me-2"></i>Global Trade Buyer Finder & Outreach</h2>
+      <p class="text-secondary mb-0">Discover international buyers via Search API and pitch directly without uploading CSV files.</p>
+    </div>
+  </div>
+
+  <div class="container pb-5">
+    <!-- Step 1: Buyer Discovery Search -->
+    <div class="card p-4 mb-4 shadow-sm">
+      <h5 class="fw-bold text-dark mb-3"><i class="bi bi-search me-2"></i>Find International Buyers via API</h5>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Target Buyer Niche</label>
+          <input type="text" id="nicheInput" class="form-control" value="Sellers of home decor items wholesale distributors">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small fw-semibold">Target Country</label>
+          <select id="countrySelect" class="form-select">
+            <option value="United States" selected>United States</option>
+            <option value="United Kingdom">United Kingdom</option>
+            <option value="Germany">Germany</option>
+            <option value="Canada">Canada</option>
+          </select>
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+          <button class="btn btn-primary w-100 fw-semibold" id="searchBtn" onclick="searchBuyers()">
+            <span id="spinner" class="spinner-border spinner-border-sm me-1 d-none"></span> Find Buyers (API)
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Discovered Buyers Table -->
+    <div class="card p-4 mb-4 shadow-sm" id="buyersCard">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="fw-bold text-dark mb-0"><i class="bi bi-building-check me-2"></i>Discovered International Buyers</h5>
+        <span class="badge badge-soft px-3 py-2" id="buyerCount">0 Buyers Found</span>
+      </div>
+      
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Company Name</th>
+              <th>Buyer Email</th>
+              <th>Country</th>
+              <th>Details</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="buyerTableBody">
+            <tr>
+              <td colspan="5" class="text-center text-muted py-4">Click "Find Buyers" to query the search API.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Step 3: Outreach Form / Modal Target -->
+    <div class="card p-4 shadow-sm">
+      <h5 class="fw-bold text-dark mb-3"><i class="bi bi-envelope-paper me-2"></i>Email Outreach to Selected Buyer</h5>
+      <form id="emailForm" onsubmit="handleSendEmail(event)">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold">Target Buyer Email</label>
+            <input type="email" id="targetEmail" name="email" class="form-control" required placeholder="Select a buyer from table above">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold">Company Name</label>
+            <input type="text" id="targetCompany" name="company" class="form-control" placeholder="Company Name">
+          </div>
+          <div class="col-12">
+            <label class="form-label small fw-semibold">Email Subject</label>
+            <input type="text" name="subject" class="form-control" value="Export Inquiry: Direct Manufacturer Supply for Home Decor">
+          </div>
+          <div class="col-12">
+            <label class="form-label small fw-semibold">Email Pitch (Use {{company}} to auto-fill)</label>
+            <textarea name="body" rows="4" class="form-control">Dear Purchasing Team at {{company}},
+
+We are direct exporters and manufacturers of high-quality handcrafted and modern home decor collections. We are expanding our distribution partners across the United States.
+
+Please review our wholesale product offerings. We would be happy to share our product catalog and pricing sheet.
+
+Best regards,
+International Trade & Export Desk</textarea>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold">Attach Product Catalog / Price List (Optional)</label>
+            <input type="file" name="catalog" class="form-control">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small fw-semibold">Your Gmail (Optional)</label>
+            <input type="email" name="smtp_user" class="form-control" placeholder="Leave blank for test mode">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small fw-semibold">App Password (Optional)</label>
+            <input type="password" name="smtp_pass" class="form-control" placeholder="16-digit password">
+          </div>
+        </div>
+        <div class="mt-3 d-flex justify-content-between align-items-center">
+          <button type="submit" class="btn btn-success fw-semibold px-4" id="sendBtn">
+            <i class="bi bi-send me-1"></i> Send Mail to Buyer
+          </button>
+          <div id="statusAlert" class="small fw-semibold"></div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    async function searchBuyers() {
+      const niche = document.getElementById('nicheInput').value;
+      const country = document.getElementById('countrySelect').value;
+      const btn = document.getElementById('searchBtn');
+      const spinner = document.getElementById('spinner');
+
+      btn.disabled = true;
+      spinner.classList.remove('d-none');
+
+      try {
+        const response = await fetch('/api/find-buyers', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({niche, country})
+        });
+        const data = await response.json();
+        
+        document.getElementById('buyerCount').innerText = `${data.buyers.length} Buyers Found`;
+        const tbody = document.getElementById('buyerTableBody');
+        tbody.innerHTML = '';
+
+        data.buyers.forEach(b => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td class="fw-bold">${b.company}</td>
+            <td><code>${b.email}</code></td>
+            <td><span class="badge bg-light text-dark border">${b.country}</span></td>
+            <td class="small text-muted" style="max-width: 250px;">${b.description}</td>
+            <td>
+              <button class="btn btn-sm btn-outline-primary fw-semibold" onclick="selectBuyer('${b.email}', '${b.company.replace(/'/g, "\\'")}')">
+                <i class="bi bi-envelope"></i> Select
+              </button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        if (data.buyers.length > 0) {
+          selectBuyer(data.buyers[0].email, data.buyers[0].company);
+        }
+      } catch (err) {
+        alert('Failed to fetch buyers.');
+      } finally {
+        btn.disabled = false;
+        spinner.classList.add('d-none');
+      }
+    }
+
+    function selectBuyer(email, company) {
+      document.getElementById('targetEmail').value = email;
+      document.getElementById('targetCompany').value = company;
+      document.getElementById('statusAlert').innerHTML = `<span class="text-primary">Selected: ${company}</span>`;
+    }
+
+    async function handleSendEmail(e) {
+      e.preventDefault();
+      const sendBtn = document.getElementById('sendBtn');
+      const statusAlert = document.getElementById('statusAlert');
+      const form = document.getElementById('emailForm');
+      const formData = new FormData(form);
+
+      sendBtn.disabled = true;
+      statusAlert.innerHTML = '<span class="text-secondary">Sending email...</span>';
+
+      try {
+        const res = await fetch('/api/send-email', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+          statusAlert.innerHTML = `<span class="text-success"><i class="bi bi-check-circle"></i> ${data.message}</span>`;
+        } else {
+          statusAlert.innerHTML = `<span class="text-danger">${data.message}</span>`;
+        }
+      } catch (err) {
+        statusAlert.innerHTML = '<span class="text-danger">Failed to send email.</span>';
+      } finally {
+        sendBtn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>
