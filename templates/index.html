@@ -8,7 +8,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <style>
     body { background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    .hero-banner { background: #0f172a; color: white; padding: 2.2rem 0; margin-bottom: 2rem; }
+    .hero-banner { background: #0f172a; color: white; padding: 2rem 0; margin-bottom: 1.5rem; }
     .card { border-radius: 8px; border: 1px solid #e2e8f0; }
     .badge-soft { background-color: #e0f2fe; color: #0369a1; font-weight: 600; }
   </style>
@@ -18,20 +18,27 @@
   <div class="hero-banner">
     <div class="container">
       <h2 class="fw-bold mb-1"><i class="bi bi-globe2 me-2"></i>Global Trade Buyer Finder & Outreach</h2>
-      <p class="text-secondary mb-0">Discover international buyers via Search API and pitch directly without uploading CSV files.</p>
+      <p class="text-secondary mb-0">Discover international buyers via Live Search API (Zero CSV uploads) with deep contact extraction and asynchronous outreach.</p>
     </div>
   </div>
 
   <div class="container pb-5">
-    <!-- Step 1: Buyer Discovery Search -->
+    <!-- Search Form Card -->
     <div class="card p-4 mb-4 shadow-sm">
-      <h5 class="fw-bold text-dark mb-3"><i class="bi bi-search me-2"></i>Find International Buyers via API</h5>
+      <h5 class="fw-bold text-dark mb-3"><i class="bi bi-search me-2"></i>Targeted Buyer Search (API)</h5>
+      
+      <div id="apiAlert" class="alert alert-warning d-none py-2 small" role="alert"></div>
+
       <div class="row g-3">
-        <div class="col-md-6">
-          <label class="form-label small fw-semibold">Target Buyer Niche</label>
-          <input type="text" id="nicheInput" class="form-control" value="Sellers of home decor items wholesale distributors">
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold">Target Niche</label>
+          <input type="text" id="nicheInput" class="form-control" value="Home decor wholesale distributors">
         </div>
         <div class="col-md-3">
+          <label class="form-label small fw-semibold">Target City (Optional)</label>
+          <input type="text" id="cityInput" class="form-control" placeholder="e.g. New York, Dallas, Atlanta">
+        </div>
+        <div class="col-md-2">
           <label class="form-label small fw-semibold">Target Country</label>
           <select id="countrySelect" class="form-select">
             <option value="United States" selected>United States</option>
@@ -42,17 +49,35 @@
         </div>
         <div class="col-md-3 d-flex align-items-end">
           <button class="btn btn-primary w-100 fw-semibold" id="searchBtn" onclick="searchBuyers()">
-            <span id="spinner" class="spinner-border spinner-border-sm me-1 d-none"></span> Find Buyers (API)
+            <span id="spinner" class="spinner-border spinner-border-sm me-1 d-none"></span> Find Live Buyers
           </button>
         </div>
       </div>
     </div>
 
-    <!-- Step 2: Discovered Buyers Table -->
+    <!-- Discovered Buyers Table Card with Batch Verification -->
     <div class="card p-4 mb-4 shadow-sm" id="buyersCard">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="fw-bold text-dark mb-0"><i class="bi bi-building-check me-2"></i>Discovered International Buyers</h5>
-        <span class="badge badge-soft px-3 py-2" id="buyerCount">0 Buyers Found</span>
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+          <h5 class="fw-bold text-dark mb-0"><i class="bi bi-building-check me-2"></i>Live Discovered Buyers</h5>
+          <span class="badge badge-soft px-3 py-1 mt-1" id="buyerCount">0 Buyers Found</span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <button class="btn btn-outline-success btn-sm fw-semibold" id="verifyAllBtn" onclick="verifyAllBuyers()" disabled>
+            <i class="bi bi-shield-check me-1"></i> Verify All Leads (Batch)
+          </button>
+        </div>
+      </div>
+
+      <!-- Animated Progress Bar -->
+      <div id="progressWrapper" class="mb-3 d-none">
+        <div class="d-flex justify-content-between small text-muted mb-1">
+          <span id="progressText">Verifying batch health across servers...</span>
+          <span id="progressPercent" class="fw-bold text-primary">0%</span>
+        </div>
+        <div class="progress" style="height: 8px;">
+          <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 0%;"></div>
+        </div>
       </div>
       
       <div class="table-responsive">
@@ -61,28 +86,28 @@
             <tr>
               <th>Company Name</th>
               <th>Buyer Email</th>
-              <th>Country</th>
-              <th>Details</th>
+              <th>City / Location</th>
+              <th>Live Activity Status</th>
               <th>Action</th>
             </tr>
           </thead>
           <tbody id="buyerTableBody">
             <tr>
-              <td colspan="5" class="text-center text-muted py-4">Click "Find Buyers" to query the search API.</td>
+              <td colspan="5" class="text-center text-muted py-4">Enter a niche or city and click "Find Live Buyers".</td>
             </tr>
           </tbody>
         </table>
       </div>
     </div>
 
-    <!-- Step 3: Outreach Form / Modal Target -->
-    <div class="card p-4 shadow-sm">
+    <!-- Outreach Form Card -->
+    <div class="card p-4 mb-4 shadow-sm">
       <h5 class="fw-bold text-dark mb-3"><i class="bi bi-envelope-paper me-2"></i>Email Outreach to Selected Buyer</h5>
       <form id="emailForm" onsubmit="handleSendEmail(event)">
         <div class="row g-3">
           <div class="col-md-6">
             <label class="form-label small fw-semibold">Target Buyer Email</label>
-            <input type="email" id="targetEmail" name="email" class="form-control" required placeholder="Select a buyer from table above">
+            <input type="email" id="targetEmail" name="email" class="form-control" required placeholder="Select a buyer above">
           </div>
           <div class="col-md-6">
             <label class="form-label small fw-semibold">Company Name</label>
@@ -90,30 +115,30 @@
           </div>
           <div class="col-12">
             <label class="form-label small fw-semibold">Email Subject</label>
-            <input type="text" name="subject" class="form-control" value="Export Inquiry: Direct Manufacturer Supply for Home Decor">
+            <input type="text" name="subject" class="form-control" value="Export Inquiry: Wholesale Manufacturer Supply for Home Decor">
           </div>
           <div class="col-12">
-            <label class="form-label small fw-semibold">Email Pitch (Use {{company}} to auto-fill)</label>
+            <label class="form-label small fw-semibold">Email Body (Use {{company}} to auto-fill name)</label>
             <textarea name="body" rows="4" class="form-control">Dear Purchasing Team at {{company}},
 
-We are direct exporters and manufacturers of high-quality handcrafted and modern home decor collections. We are expanding our distribution partners across the United States.
+We are direct exporters and manufacturers of handcrafted artisan home decor collections. We are expanding our wholesale distribution across the United States.
 
-Please review our wholesale product offerings. We would be happy to share our product catalog and pricing sheet.
+We would be pleased to provide our catalog and FOB price sheets.
 
 Best regards,
 International Trade & Export Desk</textarea>
           </div>
           <div class="col-md-6">
-            <label class="form-label small fw-semibold">Attach Product Catalog / Price List (Optional)</label>
+            <label class="form-label small fw-semibold">Catalog Attachment (Optional)</label>
             <input type="file" name="catalog" class="form-control">
           </div>
           <div class="col-md-3">
-            <label class="form-label small fw-semibold">Your Gmail (Optional)</label>
-            <input type="email" name="smtp_user" class="form-control" placeholder="Leave blank for test mode">
+            <label class="form-label small fw-semibold">Sender Gmail (Optional)</label>
+            <input type="email" name="smtp_user" class="form-control" placeholder="Uses .env by default">
           </div>
           <div class="col-md-3">
             <label class="form-label small fw-semibold">App Password (Optional)</label>
-            <input type="password" name="smtp_pass" class="form-control" placeholder="16-digit password">
+            <input type="password" name="smtp_pass" class="form-control" placeholder="Uses .env by default">
           </div>
         </div>
         <div class="mt-3 d-flex justify-content-between align-items-center">
@@ -124,37 +149,109 @@ International Trade & Export Desk</textarea>
         </div>
       </form>
     </div>
+
+    <!-- Outreach Audit Log & Export -->
+    <div class="card p-4 shadow-sm">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="fw-bold text-dark mb-0"><i class="bi bi-journal-text me-2"></i>Outreach Audit Log (History)</h5>
+        <a href="/api/download-audit-csv" class="btn btn-sm btn-outline-secondary fw-semibold">
+          <i class="bi bi-download me-1"></i> Export Campaign Log (CSV)
+        </a>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm table-striped align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Timestamp</th>
+              <th>Company</th>
+              <th>Recipient Email</th>
+              <th>Subject</th>
+              <th>Delivery Status</th>
+            </tr>
+          </thead>
+          <tbody id="auditTableBody">
+            <tr>
+              <td colspan="5" class="text-center text-muted py-3">No emails dispatched yet.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <script>
+    let currentBuyers = [];
+
+    // Load persistent audit log records on startup
+    async function loadAuditLogs() {
+      try {
+        const res = await fetch('/api/audit-logs');
+        const data = await res.json();
+        const tbody = document.getElementById('auditTableBody');
+        if (!data.logs || data.logs.length === 0) return;
+
+        tbody.innerHTML = data.logs.map(log => `
+          <tr>
+            <td class="small text-muted">${log.timestamp}</td>
+            <td class="fw-semibold">${log.company}</td>
+            <td><code>${log.email}</code></td>
+            <td class="small">${log.subject}</td>
+            <td><span class="badge ${log.status.includes('Delivered') ? 'bg-success' : 'bg-danger'}">${log.status}</span></td>
+          </tr>
+        `).join('');
+      } catch (e) {
+        console.error("Could not fetch audit records", e);
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", loadAuditLogs);
+
     async function searchBuyers() {
       const niche = document.getElementById('nicheInput').value;
+      const city = document.getElementById('cityInput').value;
       const country = document.getElementById('countrySelect').value;
       const btn = document.getElementById('searchBtn');
       const spinner = document.getElementById('spinner');
+      const alertBox = document.getElementById('apiAlert');
+      const verifyAllBtn = document.getElementById('verifyAllBtn');
 
       btn.disabled = true;
       spinner.classList.remove('d-none');
+      alertBox.classList.add('d-none');
+      document.getElementById('progressWrapper').classList.add('d-none');
 
       try {
         const response = await fetch('/api/find-buyers', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({niche, country})
+          body: JSON.stringify({niche, city, country})
         });
         const data = await response.json();
-        
-        document.getElementById('buyerCount').innerText = `${data.buyers.length} Buyers Found`;
+
+        if (data.error_alert) {
+          alertBox.innerText = data.error_alert;
+          alertBox.classList.remove('d-none');
+        }
+
+        currentBuyers = data.buyers || [];
+        document.getElementById('buyerCount').innerText = `${currentBuyers.length} Buyers Found`;
         const tbody = document.getElementById('buyerTableBody');
         tbody.innerHTML = '';
 
-        data.buyers.forEach(b => {
+        verifyAllBtn.disabled = currentBuyers.length === 0;
+
+        currentBuyers.forEach((b, index) => {
           const tr = document.createElement('tr');
+          tr.id = `buyer-row-${index}`;
           tr.innerHTML = `
             <td class="fw-bold">${b.company}</td>
             <td><code>${b.email}</code></td>
-            <td><span class="badge bg-light text-dark border">${b.country}</span></td>
-            <td class="small text-muted" style="max-width: 250px;">${b.description}</td>
+            <td><span class="badge bg-light text-dark border">${b.city}, ${b.country}</span></td>
+            <td id="status-cell-${index}">
+              <button class="btn btn-sm btn-outline-secondary py-0" onclick="verifyBuyer('${b.website}', '${b.email}', ${index})">
+                <i class="bi bi-broadcast"></i> Check Status
+              </button>
+            </td>
             <td>
               <button class="btn btn-sm btn-outline-primary fw-semibold" onclick="selectBuyer('${b.email}', '${b.company.replace(/'/g, "\\'")}')">
                 <i class="bi bi-envelope"></i> Select
@@ -164,14 +261,119 @@ International Trade & Export Desk</textarea>
           tbody.appendChild(tr);
         });
 
-        if (data.buyers.length > 0) {
-          selectBuyer(data.buyers[0].email, data.buyers[0].company);
+        if (currentBuyers.length > 0) {
+          selectBuyer(currentBuyers[0].email, currentBuyers[0].company);
         }
       } catch (err) {
-        alert('Failed to fetch buyers.');
+        alert('Failed to connect to backend server.');
       } finally {
         btn.disabled = false;
         spinner.classList.add('d-none');
+      }
+    }
+
+    function renderStatusCell(index, r) {
+      const cell = document.getElementById(`status-cell-${index}`);
+      if (!cell || !r) return;
+
+      let badgeClass = 'bg-danger';
+      if (r.verdict === 'Active Now') badgeClass = 'bg-success';
+      else if (r.verdict === 'Partially Active') badgeClass = 'bg-warning text-dark';
+
+      const isWebOk = Boolean(r.web_active);
+      const isMailOk = Boolean(r.mail_active);
+
+      const webBadge = isWebOk 
+        ? `<span class="badge bg-success-subtle text-success border border-success me-1">Web: OK</span>`
+        : `<span class="badge bg-danger-subtle text-danger border border-danger me-1">Web: Down</span>`;
+
+      const mailBadge = isMailOk 
+        ? `<span class="badge bg-success-subtle text-success border border-success">Mail: OK</span>`
+        : `<span class="badge bg-danger-subtle text-danger border border-danger">Mail: Down</span>`;
+
+      const webDesc = r.web_note || (isWebOk ? 'Website Online' : 'Website Down');
+      const mailDesc = r.mail_note || (isMailOk ? 'Mail Server Active' : 'No Mail Server');
+
+      cell.innerHTML = `
+        <div class="mb-1"><span class="badge ${badgeClass} fw-bold">${r.verdict}</span></div>
+        <div>${webBadge} ${mailBadge}</div>
+        <div class="text-muted" style="font-size: 0.72rem; line-height: 1.1; margin-top: 3px;">
+          ${webDesc} • ${mailDesc}
+        </div>
+      `;
+    }
+
+    async function verifyBuyer(website, email, index) {
+      const cell = document.getElementById(`status-cell-${index}`);
+      cell.innerHTML = '<span class="spinner-border spinner-border-sm text-primary"></span> Checking...';
+
+      try {
+        const res = await fetch('/api/verify-buyer', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({website, email})
+        });
+        const data = await res.json();
+        renderStatusCell(index, data.result);
+      } catch (e) {
+        cell.innerHTML = '<span class="badge bg-secondary">Check Failed</span>';
+      }
+    }
+
+    async function verifyAllBuyers() {
+      if (!currentBuyers || currentBuyers.length === 0) return;
+
+      const verifyAllBtn = document.getElementById('verifyAllBtn');
+      const progressWrapper = document.getElementById('progressWrapper');
+      const progressBar = document.getElementById('progressBar');
+      const progressPercent = document.getElementById('progressPercent');
+      const progressText = document.getElementById('progressText');
+
+      verifyAllBtn.disabled = true;
+      progressWrapper.classList.remove('d-none');
+      progressBar.style.width = '20%';
+      progressPercent.innerText = '20%';
+      progressText.innerText = `Dispatching parallel checks for ${currentBuyers.length} buyers...`;
+
+      currentBuyers.forEach((_, idx) => {
+        const cell = document.getElementById(`status-cell-${idx}`);
+        if (cell) cell.innerHTML = '<span class="spinner-border spinner-border-sm text-secondary"></span>';
+      });
+
+      const payload = currentBuyers.map((b, idx) => ({
+        index: idx,
+        website: b.website,
+        email: b.email
+      }));
+
+      try {
+        progressBar.style.width = '60%';
+        progressPercent.innerText = '60%';
+        progressText.innerText = 'Resolving DNS MX records and HTTP ping handshakes...';
+
+        const res = await fetch('/api/verify-batch', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({buyers: payload})
+        });
+        const data = await res.json();
+
+        if (data.status === 'success') {
+          progressBar.style.width = '100%';
+          progressPercent.innerText = '100%';
+          progressText.innerText = 'Batch verification complete!';
+
+          data.results.forEach(item => {
+            renderStatusCell(item.index, item.result);
+          });
+        }
+      } catch (err) {
+        progressText.innerText = 'Batch verification encountered an error.';
+      } finally {
+        verifyAllBtn.disabled = false;
+        setTimeout(() => {
+          progressWrapper.classList.add('d-none');
+        }, 2500);
       }
     }
 
@@ -181,6 +383,7 @@ International Trade & Export Desk</textarea>
       document.getElementById('statusAlert').innerHTML = `<span class="text-primary">Selected: ${company}</span>`;
     }
 
+    // Asynchronous non-blocking dispatch with background worker polling
     async function handleSendEmail(e) {
       e.preventDefault();
       const sendBtn = document.getElementById('sendBtn');
@@ -189,22 +392,32 @@ International Trade & Export Desk</textarea>
       const formData = new FormData(form);
 
       sendBtn.disabled = true;
-      statusAlert.innerHTML = '<span class="text-secondary">Sending email...</span>';
+      statusAlert.innerHTML = '<span class="text-secondary"><span class="spinner-border spinner-border-sm me-1"></span> Queuing background SMTP worker...</span>';
 
       try {
-        const res = await fetch('/api/send-email', {
-          method: 'POST',
-          body: formData
-        });
+        const res = await fetch('/api/send-email-async', { method: 'POST', body: formData });
         const data = await res.json();
-        if (data.status === 'success') {
-          statusAlert.innerHTML = `<span class="text-success"><i class="bi bi-check-circle"></i> ${data.message}</span>`;
-        } else {
-          statusAlert.innerHTML = `<span class="text-danger">${data.message}</span>`;
-        }
+        const taskId = data.task_id;
+
+        // Poll task status until complete
+        const pollInterval = setInterval(async () => {
+          const pollRes = await fetch(`/api/task-status/${taskId}`);
+          const pollData = await pollRes.json();
+
+          if (pollData.status === 'completed') {
+            clearInterval(pollInterval);
+            sendBtn.disabled = false;
+            statusAlert.innerHTML = `<span class="text-success"><i class="bi bi-check-circle"></i> ${pollData.message}</span>`;
+            loadAuditLogs(); // Refresh history table instantly
+          } else if (pollData.status === 'not_found') {
+            clearInterval(pollInterval);
+            sendBtn.disabled = false;
+            statusAlert.innerHTML = '<span class="text-danger">Background task lost.</span>';
+          }
+        }, 800);
+
       } catch (err) {
-        statusAlert.innerHTML = '<span class="text-danger">Failed to send email.</span>';
-      } finally {
+        statusAlert.innerHTML = '<span class="text-danger">Dispatch failed to start.</span>';
         sendBtn.disabled = false;
       }
     }
