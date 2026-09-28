@@ -57,9 +57,7 @@ def log_outreach_record(company, email, subject, status):
 
     file_exists = os.path.exists(AUDIT_LOG_FILE)
     try:
-        with open(
-            AUDIT_LOG_FILE, mode="a", newline="", encoding="utf-8"
-        ) as f:
+        with open(AUDIT_LOG_FILE, mode="a", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(
                 f,
                 fieldnames=[
@@ -86,12 +84,14 @@ def extract_domain(url):
 
 
 def scrape_deep_contacts(base_url):
+    """Crawls /contact and /contact-us subpages to discover genuine business emails.
+    Uses a strict 1.0-second timeout to avoid stalling search discovery.
+    """
     if not base_url:
         return None
 
-    # Limit to the 2 highest-probability pages to save network time
     candidate_paths = ["/contact", "/contact-us"]
-    headers = {"User-Agent": "Mozilla/5.0"}
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 
     if not base_url.startswith(("http://", "https://")):
         base_url = "https://" + base_url
@@ -99,9 +99,9 @@ def scrape_deep_contacts(base_url):
     for path in candidate_paths:
         target = urljoin(base_url, path)
         try:
-            # 1.5 second max limit so the UI never hangs
-            res = requests.get(target, headers=headers, timeout=1.5, allow_redirects=True)
+            res = requests.get(target, headers=headers, timeout=1.0, allow_redirects=True)
             if res.status_code == 200:
+                # 1. Search for mailto: links in raw HTML
                 mailto_matches = re.findall(
                     r"mailto:([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)",
                     res.text,
@@ -112,6 +112,7 @@ def scrape_deep_contacts(base_url):
                     if not clean.endswith((".png", ".jpg", ".webp", ".svg", ".js")):
                         return clean
 
+                # 2. General regex match across body text
                 matches = re.findall(EMAIL_REGEX, res.text)
                 for found_email in matches:
                     clean = found_email.strip().lower()
@@ -125,7 +126,6 @@ def scrape_deep_contacts(base_url):
 
 def verify_buyer_realtime(website_url, email):
     """Performs live health diagnostics:
-
     1. HTTP Ping to check server connectivity (HTTP < 400).
     2. DNS MX record resolution to check mail deliverability.
     """
@@ -181,7 +181,6 @@ def verify_buyer_realtime(website_url, email):
 
 def async_email_worker(task_id, email_data):
     """Executes SMTP transmission in a separate worker thread
-
     to keep Flask request cycles completely non-blocking.
     """
     recipient_email = email_data["email"]
@@ -223,14 +222,10 @@ def async_email_worker(task_id, email_data):
     else:
         time.sleep(1.2)  # Simulated latency for testing
         delivery_status = "Delivered (Simulated)"
-        detail_message = (
-            f"[Demo Mode] Asynchronously transmitted to {recipient_email}"
-        )
+        detail_message = f"[Demo Mode] Asynchronously transmitted to {recipient_email}"
 
     # Record in audit log
-    log_outreach_record(
-        company_name, recipient_email, subject, delivery_status
-    )
+    log_outreach_record(company_name, recipient_email, subject, delivery_status)
 
     # Update background task state
     ASYNC_TASKS[task_id] = {
@@ -266,61 +261,72 @@ def find_buyers():
         error_msg = "SERPAPI_KEY missing in .env file! Showing fallback data."
     else:
         try:
-            # 1. Cleaner, faster Google query (fewer restrictive boolean operators)
-            location_part = f'"{city}" "{country}"' if city else f'"{country}"'
-            search_query = f'{niche} wholesale distributor {location_part}'
+            # 1. Clean the city input (strip multi-comma inputs if user entered examples)
+            clean_city = ""
+            if city:
+                first_part = city.split(",")[0].replace("e.g.", "").strip()
+                if first_part.lower() not in ("optional", "e.g.", "any"):
+                    clean_city = first_part
+
+            # 2. Targeted query filtering out aggregators (Etsy, Faire, Amazon)
+            location_part = f'"{clean_city}" "{country}"' if clean_city else f'"{country}"'
+            search_query = (
+                f'{niche} ("boutique buyer" OR "interior showroom" OR "home decor importer" OR "wholesale showroom") '
+                f'{location_part} -site:etsy.com -site:faire.com -site:amazon.com -site:ebay.com'
+            )
 
             params = {
                 "engine": "google",
                 "q": search_query,
                 "gl": "us" if "united states" in country.lower() else "uk",
                 "hl": "en",
-                "num": 8,  # Requesting 8 items responds faster than 10-20
+                "num": 8,
                 "api_key": serp_key,
             }
 
-            # Only pass location if city is explicitly provided
-            if city:
-                params["location"] = f"{city}, {country}"
+            if clean_city:
+                params["location"] = f"{clean_city}, {country}"
 
-            # 2. Increase timeout to 30 seconds
-            res = requests.get(
-                "https://serpapi.com/search.json", params=params, timeout=30
-            )
+            # 3. Search with retry protection if SerpApi rejects location parameter
+            res = requests.get("https://serpapi.com/search.json", params=params, timeout=25)
             api_data = res.json()
+
+            if "error" in api_data and "location" in api_data.get("error", "").lower():
+                params.pop("location", None)
+                res = requests.get("https://serpapi.com/search.json", params=params, timeout=25)
+                api_data = res.json()
 
             if "error" in api_data:
                 error_msg = f"SerpApi Error: {api_data.get('error')}"
             else:
+                # 4. Filter marketplace domains
+                ignored = (
+                    "facebook.com", "instagram.com", "linkedin.com", "youtube.com",
+                    "pinterest.com", "amazon.com", "yelp.com", "etsy.com", "faire.com",
+                    "alibaba.com", "aliexpress.com", "walmart.com", "wayfair.com",
+                    "ebay.com", "yellowpages.com", "tripadvisor.com", "supplyleader.com"
+                )
+
                 for item in api_data.get("organic_results", []):
                     title = item.get("title", "Wholesale Buyer")
                     link = item.get("link", "")
                     snippet = item.get("snippet", "")
                     domain = extract_domain(link)
 
-                    ignored = (
-                        "facebook.com",
-                        "instagram.com",
-                        "linkedin.com",
-                        "youtube.com",
-                        "pinterest.com",
-                        "amazon.com",
-                        "yelp.com",
-                    )
                     if any(ig in domain.lower() for ig in ignored) or not domain:
                         continue
 
-                    # 1. First, search SerpApi snippet for public email
+                    # First, search SerpApi snippet for public email
                     snippet_emails = re.findall(EMAIL_REGEX, snippet)
                     if snippet_emails:
                         email = snippet_emails[0]
                     else:
-                        # 2. Deep-Page Scraping: Crawl company's /contact, /about, /wholesale
+                        # Deep-Page Scraping: Crawl company's /contact, /contact-us
                         scraped_email = scrape_deep_contacts(link)
                         if scraped_email:
                             email = scraped_email
                         else:
-                            # 3. Fallback to domain wholesale address
+                            # Fallback to domain wholesale address
                             email = f"sales@{domain}"
 
                     buyers.append({
@@ -328,50 +334,37 @@ def find_buyers():
                         "company": title.split(" - ")[0].split(" | ")[0][:45],
                         "email": email,
                         "website": link,
-                        "city": city.title() if city else "Major Hub",
+                        "city": clean_city.title() if clean_city else "Major Hub",
                         "country": country,
                         "description": (
-                            snippet[:120] + "..."
-                            if len(snippet) > 120
-                            else snippet
+                            snippet[:120] + "..." if len(snippet) > 120 else snippet
                         ),
                     })
 
         except Exception as e:
             error_msg = f"Network or Search API Error: {str(e)}"
 
-    # Provide high-quality fallback leads if search fails or hits rate limits
+    # High-quality fallback leads if external search hits quota limits
     if not buyers:
+        fallback_city = clean_city.title() if (city and clean_city) else "New York"
         buyers = [
             {
                 "id": 1,
-                "company": f"Pacific Living Decor ({city or 'New York'})",
-                "email": (
-                    f"wholesale@pacificliving{city.lower() or 'decor'}.com"
-                ),
+                "company": f"Pacific Living Decor ({fallback_city})",
+                "email": f"wholesale@pacificliving{fallback_city.lower().replace(' ', '')}.com",
                 "website": "https://pacificlivingstyle.com",
-                "city": city.title() if city else "New York",
+                "city": fallback_city,
                 "country": country,
-                "description": (
-                    "Nationwide distributor supplying boutique home goods and"
-                    " handcrafted decorations."
-                ),
+                "description": "Nationwide distributor supplying boutique home goods and handcrafted decorations.",
             },
             {
                 "id": 2,
-                "company": (
-                    f"American Artisan Furnishings ({city or 'Los Angeles'})"
-                ),
-                "email": (
-                    f"purchasing@artisanfurnishings{city.lower() or 'us'}.com"
-                ),
+                "company": f"American Artisan Furnishings ({fallback_city})",
+                "email": f"purchasing@artisanfurnishings{fallback_city.lower().replace(' ', '')}.com",
                 "website": "https://americanhomedecor.com",
-                "city": city.title() if city else "Los Angeles",
+                "city": fallback_city,
                 "country": country,
-                "description": (
-                    "Leading bulk importer and distributor of artisanal and"
-                    " contemporary home decor items."
-                ),
+                "description": "Leading bulk importer and distributor of artisanal and contemporary home decor items.",
             },
         ]
 
@@ -401,10 +394,7 @@ def verify_batch_buyers():
     buyers = data.get("buyers", [])
 
     if not buyers:
-        return (
-            jsonify({"status": "error", "message": "No buyers provided"}),
-            400,
-        )
+        return jsonify({"status": "error", "message": "No buyers provided"}), 400
 
     def check_item(item):
         index = item.get("index")
@@ -429,12 +419,8 @@ def send_email_async():
     }
 
     attachment = request.files.get("catalog")
-    att_bytes = (
-        attachment.read() if (attachment and attachment.filename) else None
-    )
-    att_name = (
-        attachment.filename if (attachment and attachment.filename) else None
-    )
+    att_bytes = attachment.read() if (attachment and attachment.filename) else None
+    att_name = attachment.filename if (attachment and attachment.filename) else None
 
     email_data = {
         "email": request.form.get("email"),
@@ -442,8 +428,7 @@ def send_email_async():
         "subject": request.form.get("subject", "Export Inquiry"),
         "body": request.form.get("body", ""),
         "smtp_user": request.form.get("smtp_user") or os.getenv("SMTP_EMAIL"),
-        "smtp_pass": request.form.get("smtp_pass")
-        or os.getenv("SMTP_PASSWORD"),
+        "smtp_pass": request.form.get("smtp_pass") or os.getenv("SMTP_PASSWORD"),
         "attachment_data": att_bytes,
         "attachment_name": att_name,
     }
@@ -475,9 +460,7 @@ def download_audit_csv():
     if not os.path.exists(AUDIT_LOG_FILE):
         with open(AUDIT_LOG_FILE, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
-            writer.writerow(
-                ["timestamp", "company", "email", "subject", "status"]
-            )
+            writer.writerow(["timestamp", "company", "email", "subject", "status"])
     return send_file(
         AUDIT_LOG_FILE,
         as_attachment=True,
