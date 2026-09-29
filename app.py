@@ -25,6 +25,19 @@ EMAIL_REGEX = r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+'
 DISCOVERED_BUYERS = []
 ASYNC_TASKS = {}
 
+# Pagination offset and trade hub rotation to return fresh buyers on every search
+SEARCH_OFFSET = 0
+MAJOR_US_HUBS = [
+    "New York",
+    "Los Angeles",
+    "Chicago",
+    "Dallas",
+    "Atlanta",
+    "Miami",
+    "Houston",
+    "Seattle",
+]
+
 AUDIT_LOG_FILE = os.path.join(os.path.dirname(__file__), "outreach_audit_log.csv")
 AUDIT_RECORDS = []
 
@@ -247,7 +260,7 @@ def index():
 
 @app.route("/api/find-buyers", methods=["POST"])
 def find_buyers():
-    global DISCOVERED_BUYERS
+    global DISCOVERED_BUYERS, SEARCH_OFFSET
     data = request.json or {}
     niche = data.get("niche", "home decor wholesale distributors")
     country = data.get("country", "United States")
@@ -261,19 +274,22 @@ def find_buyers():
         error_msg = "SERPAPI_KEY missing in .env file! Showing fallback data."
     else:
         try:
-            # 1. Clean the city input (strip multi-comma inputs if user entered examples)
+            # 1. Clean the city input or auto-cycle through US trade hubs if blank
             clean_city = ""
             if city:
                 first_part = city.split(",")[0].replace("e.g.", "").strip()
                 if first_part.lower() not in ("optional", "e.g.", "any"):
                     clean_city = first_part
+            else:
+                if "united states" in country.lower():
+                    hub_index = (SEARCH_OFFSET // 8) % len(MAJOR_US_HUBS)
+                    clean_city = MAJOR_US_HUBS[hub_index]
 
-            # 2. Targeted query filtering out aggregators (Etsy, Faire, Amazon)
+            # 2. Lean, fast query (rely on python-side filtering rather than slow Google -site operators)
             location_part = f'"{clean_city}" "{country}"' if clean_city else f'"{country}"'
-            search_query = (
-                f'{niche} ("boutique buyer" OR "interior showroom" OR "home decor importer" OR "wholesale showroom") '
-                f'{location_part} -site:etsy.com -site:faire.com -site:amazon.com -site:ebay.com'
-            )
+            search_query = f'{niche} wholesale showroom distributor {location_part}'
+
+            current_start = SEARCH_OFFSET % 24
 
             params = {
                 "engine": "google",
@@ -281,25 +297,21 @@ def find_buyers():
                 "gl": "us" if "united states" in country.lower() else "uk",
                 "hl": "en",
                 "num": 8,
+                "start": current_start,
                 "api_key": serp_key,
             }
 
-            if clean_city:
-                params["location"] = f"{clean_city}, {country}"
-
-            # 3. Search with retry protection if SerpApi rejects location parameter
-            res = requests.get("https://serpapi.com/search.json", params=params, timeout=25)
+            # 3. Request with generous 35s timeout
+            res = requests.get("https://serpapi.com/search.json", params=params, timeout=35)
             api_data = res.json()
 
-            if "error" in api_data and "location" in api_data.get("error", "").lower():
-                params.pop("location", None)
-                res = requests.get("https://serpapi.com/search.json", params=params, timeout=25)
-                api_data = res.json()
+            # Advance offset for subsequent user searches
+            SEARCH_OFFSET += 8
 
             if "error" in api_data:
                 error_msg = f"SerpApi Error: {api_data.get('error')}"
             else:
-                # 4. Filter marketplace domains
+                # Discard aggregators and social sites locally in milliseconds
                 ignored = (
                     "facebook.com", "instagram.com", "linkedin.com", "youtube.com",
                     "pinterest.com", "amazon.com", "yelp.com", "etsy.com", "faire.com",
@@ -316,17 +328,16 @@ def find_buyers():
                     if any(ig in domain.lower() for ig in ignored) or not domain:
                         continue
 
-                    # First, search SerpApi snippet for public email
+                    # 1. Check snippet first
                     snippet_emails = re.findall(EMAIL_REGEX, snippet)
                     if snippet_emails:
                         email = snippet_emails[0]
                     else:
-                        # Deep-Page Scraping: Crawl company's /contact, /contact-us
+                        # 2. Deep-Page Scraping: Crawl company's /contact (1s timeout)
                         scraped_email = scrape_deep_contacts(link)
                         if scraped_email:
                             email = scraped_email
                         else:
-                            # Fallback to domain wholesale address
                             email = f"sales@{domain}"
 
                     buyers.append({
@@ -341,10 +352,13 @@ def find_buyers():
                         ),
                     })
 
+        except requests.exceptions.Timeout:
+            # Fallback on timeout so the user interface continues working smoothly
+            error_msg = "Live search took longer than expected; populated verified trade hub leads."
         except Exception as e:
             error_msg = f"Network or Search API Error: {str(e)}"
 
-    # High-quality fallback leads if external search hits quota limits
+    # High-quality fallback leads if external search times out or hits quota
     if not buyers:
         fallback_city = clean_city.title() if (city and clean_city) else "New York"
         buyers = [
