@@ -1,426 +1,93 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>International Buyer Discovery & Outreach Portal</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-  <style>
-    body { background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    .hero-banner { background: #0f172a; color: white; padding: 2rem 0; margin-bottom: 1.5rem; }
-    .card { border-radius: 8px; border: 1px solid #e2e8f0; }
-    .badge-soft { background-color: #e0f2fe; color: #0369a1; font-weight: 600; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Product Buyer Discovery & Outreach Portal</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<style>
+body{background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}.hero-banner{background:#0f172a;color:#fff;padding:2rem 0;margin-bottom:1.5rem}.card{border-radius:8px;border:1px solid #e2e8f0}.badge-soft{background:#e0f2fe;color:#0369a1;font-weight:600}.badge-extracted{background:#dcfce7;color:#15803d;border:1px solid #86efac;font-size:.7rem}.badge-category{background:#f3e8ff;color:#7e22ce;border:1px solid #d8b4fe;font-size:.7rem}.stat-box{border:1px solid #e2e8f0;border-radius:8px;padding:.75rem 1rem;background:#fff}.table td,.table th{vertical-align:middle}
+</style>
 </head>
 <body>
+<div class="hero-banner"><div class="container"><h2 class="fw-bold mb-1"><i class="bi bi-search-heart me-2"></i>Product Buyer Finder & Outreach</h2><p class="text-secondary mb-0">Enter your product once. The app automatically searches multiple local buyer categories, multiple result pages, removes duplicates, and looks for publicly listed business emails.</p></div></div>
+<div class="container pb-5">
+<div class="card p-4 mb-4 shadow-sm">
+<h5 class="fw-bold text-dark mb-2"><i class="bi bi-search me-2"></i>Find Potential Buyers</h5>
+<p class="small text-muted mb-3">Example: enter <strong>candles</strong>. You do not need to type “spa, cafe, restaurant, hotel, gift shop...” individually.</p>
+<div id="apiAlert" class="alert alert-warning d-none py-2 small" role="alert"></div>
+<div class="row g-3">
+<div class="col-md-3"><label class="form-label small fw-semibold">Product / Target Niche</label><input type="text" id="nicheInput" class="form-control" value="candles" placeholder="e.g. candles, decor, planters"></div>
+<div class="col-md-2"><label class="form-label small fw-semibold">Target City</label><input type="text" id="cityInput" class="form-control" placeholder="e.g. Mission"></div>
+<div class="col-md-2"><label class="form-label small fw-semibold">State</label><input type="text" id="stateInput" class="form-control" placeholder="e.g. Texas / TX"></div>
+<div class="col-md-2"><label class="form-label small fw-semibold">Country</label><select id="countrySelect" class="form-select"><option value="United States" selected>United States</option><option value="Canada">Canada</option><option value="United Kingdom">United Kingdom</option><option value="Germany">Germany</option></select></div>
+<div class="col-md-1"><label class="form-label small fw-semibold">Pages</label><select id="pagesSelect" class="form-select"><option value="1">1</option><option value="2">2</option><option value="3" selected>3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option></select></div>
+<div class="col-md-2 d-flex align-items-end"><button class="btn btn-primary w-100 fw-semibold" id="searchBtn" onclick="searchBuyers()"><span id="spinner" class="spinner-border spinner-border-sm me-1 d-none"></span>Find Buyers</button></div>
+</div>
+<div class="row g-2 mt-3"><div class="col-md-4"><div class="stat-box small"><div class="text-muted">Search location</div><div id="locationSummary" class="fw-semibold">Not selected</div></div></div><div class="col-md-4"><div class="stat-box small"><div class="text-muted">Automatic buyer categories</div><div id="categorySummary" class="fw-semibold">Waiting for search</div></div></div><div class="col-md-4"><div class="stat-box small"><div class="text-muted">Search depth</div><div id="pageSummary" class="fw-semibold">Up to 6 pages/category</div></div></div></div>
+<div id="categoryBadges" class="mt-3"></div>
+</div>
 
-  <div class="hero-banner">
-    <div class="container">
-      <h2 class="fw-bold mb-1"><i class="bi bi-globe2 me-2"></i>Global Trade Buyer Finder & Outreach</h2>
-      <p class="text-secondary mb-0">Discover international buyers via Live Search API (Zero CSV uploads) with deep contact extraction and asynchronous outreach.</p>
-    </div>
-  </div>
+<div class="card p-4 mb-4 shadow-sm" id="buyersCard">
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3"><div><h5 class="fw-bold text-dark mb-0"><i class="bi bi-building-check me-2"></i>Discovered Commercial Buyers</h5><span class="badge badge-soft px-3 py-1 mt-1" id="buyerCount">0 Buyers Found</span></div><div><button class="btn btn-outline-success btn-sm fw-semibold" id="verifyAllBtn" onclick="verifyAllBuyers()" disabled><i class="bi bi-shield-check me-1"></i>Verify All Leads</button></div></div>
+<div id="searchProgressWrapper" class="mb-3 d-none"><div class="d-flex justify-content-between small text-muted mb-1"><span id="searchProgressText">Searching local businesses...</span><span id="searchProgressPercent" class="fw-bold text-primary">0%</span></div><div class="progress" style="height:8px"><div id="searchProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width:0%"></div></div></div>
+<div id="progressWrapper" class="mb-3 d-none"><div class="d-flex justify-content-between small text-muted mb-1"><span id="progressText">Verifying leads...</span><span id="progressPercent" class="fw-bold text-primary">0%</span></div><div class="progress" style="height:8px"><div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width:0%"></div></div></div>
+<div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead class="table-light"><tr><th>Company</th><th>Buyer Category</th><th>Public Email</th><th>Location</th><th>Live Status</th><th>Action</th></tr></thead><tbody id="buyerTableBody"><tr><td colspan="6" class="text-center text-muted py-4">Enter a product and city, then click “Find Buyers”.</td></tr></tbody></table></div>
+</div>
 
-  <div class="container pb-5">
-    <!-- Search Form Card -->
-    <div class="card p-4 mb-4 shadow-sm">
-      <h5 class="fw-bold text-dark mb-3"><i class="bi bi-search me-2"></i>Targeted Buyer Search (API)</h5>
-      
-      <div id="apiAlert" class="alert alert-warning d-none py-2 small" role="alert"></div>
+<div class="card p-4 mb-4 shadow-sm"><h5 class="fw-bold text-dark mb-3"><i class="bi bi-envelope-paper me-2"></i>Email Outreach to Selected Buyer</h5><form id="emailForm" onsubmit="handleSendEmail(event)"><div class="row g-3">
+<div class="col-md-6"><label class="form-label small fw-semibold">Target Buyer Email</label><input type="email" id="targetEmail" name="email" class="form-control" required placeholder="Select a buyer above"></div>
+<div class="col-md-6"><label class="form-label small fw-semibold">Company Name</label><input type="text" id="targetCompany" name="company" class="form-control" placeholder="Company Name"></div>
+<div class="col-12"><label class="form-label small fw-semibold">Email Subject</label><input type="text" name="subject" class="form-control" value="Glass candle holders for your collection"></div>
+<div class="col-12"><label class="form-label small fw-semibold">Email Body (Use {{company}} to auto-fill name)</label><textarea name="body" rows="7" class="form-control">Hi team at {{company}},
 
-      <div class="row g-3">
-        <div class="col-md-4">
-          <label class="form-label small fw-semibold">Target Niche</label>
-          <input type="text" id="nicheInput" class="form-control" value="Home decor wholesale distributors">
-        </div>
-        <div class="col-md-3">
-          <label class="form-label small fw-semibold">Target City (Optional)</label>
-          <input type="text" id="cityInput" class="form-control" placeholder="e.g. New York, Dallas, Atlanta">
-        </div>
-        <div class="col-md-2">
-          <label class="form-label small fw-semibold">Target Country</label>
-          <select id="countrySelect" class="form-select">
-            <option value="United States" selected>United States</option>
-            <option value="United Kingdom">United Kingdom</option>
-            <option value="Germany">Germany</option>
-            <option value="Canada">Canada</option>
-          </select>
-        </div>
-        <div class="col-md-3 d-flex align-items-end">
-          <button class="btn btn-primary w-100 fw-semibold" id="searchBtn" onclick="searchBuyers()">
-            <span id="spinner" class="spinner-border spinner-border-sm me-1 d-none"></span> Find Live Buyers
-          </button>
-        </div>
-      </div>
-    </div>
+I came across your business and thought our handcrafted glass candle holder collection could be a good fit for your retail, décor, hospitality, spa, or event setting.
 
-    <!-- Discovered Buyers Table Card with Batch Verification -->
-    <div class="card p-4 mb-4 shadow-sm" id="buyersCard">
-      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-        <div>
-          <h5 class="fw-bold text-dark mb-0"><i class="bi bi-building-check me-2"></i>Live Discovered Buyers</h5>
-          <span class="badge badge-soft px-3 py-1 mt-1" id="buyerCount">0 Buyers Found</span>
-        </div>
-        <div class="d-flex align-items-center gap-2">
-          <button class="btn btn-outline-success btn-sm fw-semibold" id="verifyAllBtn" onclick="verifyAllBuyers()" disabled>
-            <i class="bi bi-shield-check me-1"></i> Verify All Leads (Batch)
-          </button>
-        </div>
-      </div>
+We manufacture handcrafted mercury and textured glass votive and candle holder collections for independent businesses, with low order minimums and flexible finishes.
 
-      <!-- Animated Progress Bar -->
-      <div id="progressWrapper" class="mb-3 d-none">
-        <div class="d-flex justify-content-between small text-muted mb-1">
-          <span id="progressText">Verifying batch health across servers...</span>
-          <span id="progressPercent" class="fw-bold text-primary">0%</span>
-        </div>
-        <div class="progress" style="height: 8px;">
-          <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 0%;"></div>
-        </div>
-      </div>
-      
-      <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-          <thead class="table-light">
-            <tr>
-              <th>Company Name</th>
-              <th>Buyer Email</th>
-              <th>City / Location</th>
-              <th>Live Activity Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody id="buyerTableBody">
-            <tr>
-              <td colspan="5" class="text-center text-muted py-4">Enter a niche or city and click "Find Live Buyers".</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+I’ve attached our catalog for a quick look.
 
-    <!-- Outreach Form Card -->
-    <div class="card p-4 mb-4 shadow-sm">
-      <h5 class="fw-bold text-dark mb-3"><i class="bi bi-envelope-paper me-2"></i>Email Outreach to Selected Buyer</h5>
-      <form id="emailForm" onsubmit="handleSendEmail(event)">
-        <div class="row g-3">
-          <div class="col-md-6">
-            <label class="form-label small fw-semibold">Target Buyer Email</label>
-            <input type="email" id="targetEmail" name="email" class="form-control" required placeholder="Select a buyer above">
-          </div>
-          <div class="col-md-6">
-            <label class="form-label small fw-semibold">Company Name</label>
-            <input type="text" id="targetCompany" name="company" class="form-control" placeholder="Company Name">
-          </div>
-          <div class="col-12">
-            <label class="form-label small fw-semibold">Email Subject</label>
-            <input type="text" name="subject" class="form-control" value="Export Inquiry: Wholesale Manufacturer Supply for Home Decor">
-          </div>
-          <div class="col-12">
-            <label class="form-label small fw-semibold">Email Body (Use {{company}} to auto-fill name)</label>
-            <textarea name="body" rows="4" class="form-control">Dear Purchasing Team at {{company}},
+If the collection fits what you are looking for, I’d be happy to send our wholesale pricing and sample options.
 
-We are direct exporters and manufacturers of handcrafted artisan home decor collections. We are expanding our wholesale distribution across the United States.
+Warm regards,
 
-We would be pleased to provide our catalog and FOB price sheets.
+Product Zone International</textarea></div>
+<div class="col-md-6"><label class="form-label small fw-semibold">Catalog Attachment (Optional)</label><input type="file" name="catalog" class="form-control"></div>
+<div class="col-md-3"><label class="form-label small fw-semibold">Sender Gmail (Optional)</label><input type="email" name="smtp_user" class="form-control" placeholder="Uses .env by default"></div>
+<div class="col-md-3"><label class="form-label small fw-semibold">App Password (Optional)</label><input type="password" name="smtp_pass" class="form-control" placeholder="Uses .env by default"></div>
+</div><div class="mt-3 d-flex justify-content-between align-items-center"><button type="submit" class="btn btn-success fw-semibold px-4" id="sendBtn"><i class="bi bi-send me-1"></i>Send Mail to Buyer</button><div id="statusAlert" class="small fw-semibold"></div></div></form></div>
 
-Best regards,
-International Trade & Export Desk</textarea>
-          </div>
-          <div class="col-md-6">
-            <label class="form-label small fw-semibold">Catalog Attachment (Optional)</label>
-            <input type="file" name="catalog" class="form-control">
-          </div>
-          <div class="col-md-3">
-            <label class="form-label small fw-semibold">Sender Gmail (Optional)</label>
-            <input type="email" name="smtp_user" class="form-control" placeholder="Uses .env by default">
-          </div>
-          <div class="col-md-3">
-            <label class="form-label small fw-semibold">App Password (Optional)</label>
-            <input type="password" name="smtp_pass" class="form-control" placeholder="Uses .env by default">
-          </div>
-        </div>
-        <div class="mt-3 d-flex justify-content-between align-items-center">
-          <button type="submit" class="btn btn-success fw-semibold px-4" id="sendBtn">
-            <i class="bi bi-send me-1"></i> Send Mail to Buyer
-          </button>
-          <div id="statusAlert" class="small fw-semibold"></div>
-        </div>
-      </form>
-    </div>
+<div class="card p-4 shadow-sm"><div class="d-flex justify-content-between align-items-center mb-3"><h5 class="fw-bold text-dark mb-0"><i class="bi bi-journal-text me-2"></i>Outreach Audit Log</h5><a href="/api/download-audit-csv" class="btn btn-sm btn-outline-secondary fw-semibold"><i class="bi bi-download me-1"></i>Export Campaign Log</a></div><div class="table-responsive"><table class="table table-sm table-striped align-middle mb-0"><thead class="table-light"><tr><th>Timestamp</th><th>Company</th><th>Recipient Email</th><th>Subject</th><th>Delivery Status</th></tr></thead><tbody id="auditTableBody"><tr><td colspan="5" class="text-center text-muted py-3">No emails dispatched yet.</td></tr></tbody></table></div></div>
+</div>
 
-    <!-- Outreach Audit Log & Export -->
-    <div class="card p-4 shadow-sm">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="fw-bold text-dark mb-0"><i class="bi bi-journal-text me-2"></i>Outreach Audit Log (History)</h5>
-        <a href="/api/download-audit-csv" class="btn btn-sm btn-outline-secondary fw-semibold">
-          <i class="bi bi-download me-1"></i> Export Campaign Log (CSV)
-        </a>
-      </div>
-      <div class="table-responsive">
-        <table class="table table-sm table-striped align-middle mb-0">
-          <thead class="table-light">
-            <tr>
-              <th>Timestamp</th>
-              <th>Company</th>
-              <th>Recipient Email</th>
-              <th>Subject</th>
-              <th>Delivery Status</th>
-            </tr>
-          </thead>
-          <tbody id="auditTableBody">
-            <tr>
-              <td colspan="5" class="text-center text-muted py-3">No emails dispatched yet.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+<script>
+let currentBuyers=[];
+function esc(v){return String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");}
+async function fetchJson(url, options={}){
+  const r=await fetch(url, options);
+  const ct=r.headers.get('content-type')||'';
+  const text=await r.text();
+  if(!ct.includes('application/json')){
+    const snippet=text.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,500);
+    throw new Error(`Server returned HTTP ${r.status} instead of JSON${snippet?': '+snippet:''}`);
+  }
+  let d;
+  try{d=JSON.parse(text);}catch(e){throw new Error(`Server returned invalid JSON (HTTP ${r.status}).`);}
+  if(!r.ok) throw new Error(d.error_alert||d.message||`Request failed (HTTP ${r.status}).`);
+  return d;
+}
 
-  <script>
-    let currentBuyers = [];
-
-    // Load persistent audit log records on startup
-    async function loadAuditLogs() {
-      try {
-        const res = await fetch('/api/audit-logs');
-        const data = await res.json();
-        const tbody = document.getElementById('auditTableBody');
-        if (!data.logs || data.logs.length === 0) return;
-
-        tbody.innerHTML = data.logs.map(log => `
-          <tr>
-            <td class="small text-muted">${log.timestamp}</td>
-            <td class="fw-semibold">${log.company}</td>
-            <td><code>${log.email}</code></td>
-            <td class="small">${log.subject}</td>
-            <td><span class="badge ${log.status.includes('Delivered') ? 'bg-success' : 'bg-danger'}">${log.status}</span></td>
-          </tr>
-        `).join('');
-      } catch (e) {
-        console.error("Could not fetch audit records", e);
-      }
-    }
-
-    document.addEventListener("DOMContentLoaded", loadAuditLogs);
-
-    async function searchBuyers() {
-      const niche = document.getElementById('nicheInput').value;
-      const city = document.getElementById('cityInput').value;
-      const country = document.getElementById('countrySelect').value;
-      const btn = document.getElementById('searchBtn');
-      const spinner = document.getElementById('spinner');
-      const alertBox = document.getElementById('apiAlert');
-      const verifyAllBtn = document.getElementById('verifyAllBtn');
-
-      btn.disabled = true;
-      spinner.classList.remove('d-none');
-      alertBox.classList.add('d-none');
-      document.getElementById('progressWrapper').classList.add('d-none');
-
-      try {
-        const response = await fetch('/api/find-buyers', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({niche, city, country})
-        });
-        const data = await response.json();
-
-        if (data.error_alert) {
-          alertBox.innerText = data.error_alert;
-          alertBox.classList.remove('d-none');
-        }
-
-        currentBuyers = data.buyers || [];
-        document.getElementById('buyerCount').innerText = `${currentBuyers.length} Buyers Found`;
-        const tbody = document.getElementById('buyerTableBody');
-        tbody.innerHTML = '';
-
-        verifyAllBtn.disabled = currentBuyers.length === 0;
-
-        currentBuyers.forEach((b, index) => {
-          const tr = document.createElement('tr');
-          tr.id = `buyer-row-${index}`;
-          tr.innerHTML = `
-            <td class="fw-bold">${b.company}</td>
-            <td><code>${b.email}</code></td>
-            <td><span class="badge bg-light text-dark border">${b.city}, ${b.country}</span></td>
-            <td id="status-cell-${index}">
-              <button class="btn btn-sm btn-outline-secondary py-0" onclick="verifyBuyer('${b.website}', '${b.email}', ${index})">
-                <i class="bi bi-broadcast"></i> Check Status
-              </button>
-            </td>
-            <td>
-              <button class="btn btn-sm btn-outline-primary fw-semibold" onclick="selectBuyer('${b.email}', '${b.company.replace(/'/g, "\\'")}')">
-                <i class="bi bi-envelope"></i> Select
-              </button>
-            </td>
-          `;
-          tbody.appendChild(tr);
-        });
-
-        if (currentBuyers.length > 0) {
-          selectBuyer(currentBuyers[0].email, currentBuyers[0].company);
-        }
-      } catch (err) {
-        alert('Failed to connect to backend server.');
-      } finally {
-        btn.disabled = false;
-        spinner.classList.add('d-none');
-      }
-    }
-
-    function renderStatusCell(index, r) {
-      const cell = document.getElementById(`status-cell-${index}`);
-      if (!cell || !r) return;
-
-      let badgeClass = 'bg-danger';
-      if (r.verdict === 'Active Now') badgeClass = 'bg-success';
-      else if (r.verdict === 'Partially Active') badgeClass = 'bg-warning text-dark';
-
-      const isWebOk = Boolean(r.web_active);
-      const isMailOk = Boolean(r.mail_active);
-
-      const webBadge = isWebOk 
-        ? `<span class="badge bg-success-subtle text-success border border-success me-1">Web: OK</span>`
-        : `<span class="badge bg-danger-subtle text-danger border border-danger me-1">Web: Down</span>`;
-
-      const mailBadge = isMailOk 
-        ? `<span class="badge bg-success-subtle text-success border border-success">Mail: OK</span>`
-        : `<span class="badge bg-danger-subtle text-danger border border-danger">Mail: Down</span>`;
-
-      const webDesc = r.web_note || (isWebOk ? 'Website Online' : 'Website Down');
-      const mailDesc = r.mail_note || (isMailOk ? 'Mail Server Active' : 'No Mail Server');
-
-      cell.innerHTML = `
-        <div class="mb-1"><span class="badge ${badgeClass} fw-bold">${r.verdict}</span></div>
-        <div>${webBadge} ${mailBadge}</div>
-        <div class="text-muted" style="font-size: 0.72rem; line-height: 1.1; margin-top: 3px;">
-          ${webDesc} • ${mailDesc}
-        </div>
-      `;
-    }
-
-    async function verifyBuyer(website, email, index) {
-      const cell = document.getElementById(`status-cell-${index}`);
-      cell.innerHTML = '<span class="spinner-border spinner-border-sm text-primary"></span> Checking...';
-
-      try {
-        const res = await fetch('/api/verify-buyer', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({website, email})
-        });
-        const data = await res.json();
-        renderStatusCell(index, data.result);
-      } catch (e) {
-        cell.innerHTML = '<span class="badge bg-secondary">Check Failed</span>';
-      }
-    }
-
-    async function verifyAllBuyers() {
-      if (!currentBuyers || currentBuyers.length === 0) return;
-
-      const verifyAllBtn = document.getElementById('verifyAllBtn');
-      const progressWrapper = document.getElementById('progressWrapper');
-      const progressBar = document.getElementById('progressBar');
-      const progressPercent = document.getElementById('progressPercent');
-      const progressText = document.getElementById('progressText');
-
-      verifyAllBtn.disabled = true;
-      progressWrapper.classList.remove('d-none');
-      progressBar.style.width = '20%';
-      progressPercent.innerText = '20%';
-      progressText.innerText = `Dispatching parallel checks for ${currentBuyers.length} buyers...`;
-
-      currentBuyers.forEach((_, idx) => {
-        const cell = document.getElementById(`status-cell-${idx}`);
-        if (cell) cell.innerHTML = '<span class="spinner-border spinner-border-sm text-secondary"></span>';
-      });
-
-      const payload = currentBuyers.map((b, idx) => ({
-        index: idx,
-        website: b.website,
-        email: b.email
-      }));
-
-      try {
-        progressBar.style.width = '60%';
-        progressPercent.innerText = '60%';
-        progressText.innerText = 'Resolving DNS MX records and HTTP ping handshakes...';
-
-        const res = await fetch('/api/verify-batch', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({buyers: payload})
-        });
-        const data = await res.json();
-
-        if (data.status === 'success') {
-          progressBar.style.width = '100%';
-          progressPercent.innerText = '100%';
-          progressText.innerText = 'Batch verification complete!';
-
-          data.results.forEach(item => {
-            renderStatusCell(item.index, item.result);
-          });
-        }
-      } catch (err) {
-        progressText.innerText = 'Batch verification encountered an error.';
-      } finally {
-        verifyAllBtn.disabled = false;
-        setTimeout(() => {
-          progressWrapper.classList.add('d-none');
-        }, 2500);
-      }
-    }
-
-    function selectBuyer(email, company) {
-      document.getElementById('targetEmail').value = email;
-      document.getElementById('targetCompany').value = company;
-      document.getElementById('statusAlert').innerHTML = `<span class="text-primary">Selected: ${company}</span>`;
-    }
-
-    // Asynchronous non-blocking dispatch with background worker polling
-    async function handleSendEmail(e) {
-      e.preventDefault();
-      const sendBtn = document.getElementById('sendBtn');
-      const statusAlert = document.getElementById('statusAlert');
-      const form = document.getElementById('emailForm');
-      const formData = new FormData(form);
-
-      sendBtn.disabled = true;
-      statusAlert.innerHTML = '<span class="text-secondary"><span class="spinner-border spinner-border-sm me-1"></span> Queuing background SMTP worker...</span>';
-
-      try {
-        const res = await fetch('/api/send-email-async', { method: 'POST', body: formData });
-        const data = await res.json();
-        const taskId = data.task_id;
-
-        // Poll task status until complete
-        const pollInterval = setInterval(async () => {
-          const pollRes = await fetch(`/api/task-status/${taskId}`);
-          const pollData = await pollRes.json();
-
-          if (pollData.status === 'completed') {
-            clearInterval(pollInterval);
-            sendBtn.disabled = false;
-            statusAlert.innerHTML = `<span class="text-success"><i class="bi bi-check-circle"></i> ${pollData.message}</span>`;
-            loadAuditLogs(); // Refresh history table instantly
-          } else if (pollData.status === 'not_found') {
-            clearInterval(pollInterval);
-            sendBtn.disabled = false;
-            statusAlert.innerHTML = '<span class="text-danger">Background task lost.</span>';
-          }
-        }, 800);
-
-      } catch (err) {
-        statusAlert.innerHTML = '<span class="text-danger">Dispatch failed to start.</span>';
-        sendBtn.disabled = false;
-      }
-    }
-  </script>
+async function loadAuditLogs(){try{const d=await fetchJson('/api/audit-logs'),t=document.getElementById('auditTableBody');if(!d.logs||!d.logs.length)return;t.innerHTML=d.logs.map(l=>`<tr><td class="small text-muted">${esc(l.timestamp)}</td><td class="fw-semibold">${esc(l.company)}</td><td><code>${esc(l.email)}</code></td><td class="small">${esc(l.subject)}</td><td><span class="badge ${String(l.status).includes('Delivered')?'bg-success':'bg-danger'}">${esc(l.status)}</span></td></tr>`).join('')}catch(e){console.error(e)}}
+document.addEventListener('DOMContentLoaded',loadAuditLogs);
+function renderCategories(cats){const b=document.getElementById('categoryBadges');b.innerHTML=cats&&cats.length?`<div class="small text-muted mb-2">Automatically searched buyer categories:</div><div class="d-flex flex-wrap gap-1">${cats.map(c=>`<span class="badge badge-category">${esc(c.label)}</span>`).join('')}</div>`:'';}
+function renderRows(){const t=document.getElementById('buyerTableBody');t.innerHTML='';if(!currentBuyers.length){t.innerHTML='<tr><td colspan="6" class="text-center text-muted py-4">No public-email prospects were found. Try a nearby city or increase the page count.</td></tr>';return;}currentBuyers.forEach((b,i)=>{const tr=document.createElement('tr');tr.id=`buyer-row-${i}`;tr.innerHTML=`<td class="fw-bold"><a href="${esc(b.website)}" target="_blank" rel="noopener noreferrer" class="text-dark text-decoration-none">${esc(b.company)}</a>${b.rating?`<div class="small text-muted mt-1">Rating: ${esc(b.rating)}${b.reviews?` (${esc(b.reviews)} reviews)`:''}</div>`:''}</td><td><span class="badge badge-category">${esc(b.category||b.business_type||'Business')}</span></td><td><div><code>${esc(b.email)}</code></div><div class="mt-1"><span class="badge badge-extracted"><i class="bi bi-patch-check"></i> Public website</span></div></td><td><span class="badge bg-light text-dark border">${esc(b.city)}${b.state?', '+esc(b.state):''}, ${esc(b.country)}</span></td><td id="status-cell-${i}"><button class="btn btn-sm btn-outline-secondary py-0" onclick="verifyBuyer(${i})"><i class="bi bi-broadcast"></i> Check Status</button></td><td><button class="btn btn-sm btn-outline-primary fw-semibold" onclick="selectBuyer(${i})"><i class="bi bi-envelope"></i> Select</button></td>`;t.appendChild(tr);});}
+async function searchBuyers(){const niche=document.getElementById('nicheInput').value.trim(),city=document.getElementById('cityInput').value.trim(),state=document.getElementById('stateInput').value.trim(),country=document.getElementById('countrySelect').value,pages=Number(document.getElementById('pagesSelect').value),btn=document.getElementById('searchBtn'),spin=document.getElementById('spinner'),alert=document.getElementById('apiAlert');if(!niche){alert.innerText='Enter the product, e.g. candles.';alert.classList.remove('d-none');return;}if(!city){alert.innerText='Enter a target city, e.g. Mission.';alert.classList.remove('d-none');return;}btn.disabled=true;spin.classList.remove('d-none');alert.classList.add('d-none');currentBuyers=[];renderRows();document.getElementById('verifyAllBtn').disabled=true;document.getElementById('locationSummary').innerText=`${city}${state?', '+state:''}, ${country}`;document.getElementById('pageSummary').innerText=`${pages} page${pages===1?'':'s'} per buyer category`;const w=document.getElementById('searchProgressWrapper'),bar=document.getElementById('searchProgressBar'),pct=document.getElementById('searchProgressPercent'),txt=document.getElementById('searchProgressText');w.classList.remove('d-none');bar.style.width='10%';pct.innerText='10%';let startedAt=Date.now();let elapsedTimer=setInterval(()=>{const sec=Math.floor((Date.now()-startedAt)/1000);txt.innerText=`Searching local businesses and public websites... ${sec}s`;},1000);txt.innerText='Searching local businesses and public websites... 0s';try{const d=await fetchJson('/api/find-buyers',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({niche,city,state,country,pages})});if(d.error_alert){alert.innerText=d.error_alert;alert.classList.remove('d-none');}renderCategories(d.buyer_categories||[]);document.getElementById('categorySummary').innerText=`${(d.buyer_categories||[]).length} buyer categories`;bar.style.width='90%';pct.innerText='90%';txt.innerText='Public email extraction complete; preparing results...';currentBuyers=d.buyers||[];document.getElementById('buyerCount').innerText=`${currentBuyers.length} Buyers Found`;renderRows();document.getElementById('verifyAllBtn').disabled=!currentBuyers.length;bar.style.width='100%';pct.innerText='100%';txt.innerText=`Search complete: ${currentBuyers.length} public-email prospects found.`;if(currentBuyers.length)selectBuyer(0);}catch(e){console.error(e);alert.innerText=e.message||'Backend search failed.';alert.classList.remove('d-none');}finally{clearInterval(elapsedTimer);btn.disabled=false;spin.classList.add('d-none');setTimeout(()=>w.classList.add('d-none'),3000);}}
+function renderStatusCell(i,r){const c=document.getElementById(`status-cell-${i}`);if(!c||!r)return;let bc='bg-danger';if(r.verdict==='Website + mail domain active')bc='bg-success';else if(r.web_active||r.mail_active)bc='bg-warning text-dark';const wb=r.web_active?'<span class="badge bg-success-subtle text-success border border-success me-1">Web: OK</span>':'<span class="badge bg-danger-subtle text-danger border border-danger me-1">Web: Down</span>',mb=r.mail_active?'<span class="badge bg-success-subtle text-success border border-success">Mail: MX OK</span>':'<span class="badge bg-danger-subtle text-danger border border-danger">Mail: MX not confirmed</span>';c.innerHTML=`<div class="mb-1"><span class="badge ${bc} fw-bold">${esc(r.verdict)}</span></div><div>${wb} ${mb}</div><div class="text-muted" style="font-size:.72rem;line-height:1.1;margin-top:3px">${esc(r.web_note||'')} • ${esc(r.mail_note||'')}</div>`;}
+async function verifyBuyer(i){const b=currentBuyers[i],c=document.getElementById(`status-cell-${i}`);if(!b)return;c.innerHTML='<span class="spinner-border spinner-border-sm text-primary"></span> Checking...';try{const d=await fetchJson('/api/verify-buyer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({website:b.website,email:b.email})});renderStatusCell(i,d.result);}catch(e){c.innerHTML='<span class="badge bg-secondary">Check Failed</span>';}}
+async function verifyAllBuyers(){if(!currentBuyers.length)return;const btn=document.getElementById('verifyAllBtn'),w=document.getElementById('progressWrapper'),bar=document.getElementById('progressBar'),pct=document.getElementById('progressPercent'),txt=document.getElementById('progressText');btn.disabled=true;w.classList.remove('d-none');bar.style.width='20%';pct.innerText='20%';txt.innerText=`Checking ${currentBuyers.length} website/mail domains...`;const payload=currentBuyers.map((b,i)=>({index:i,website:b.website,email:b.email}));try{const d=await fetchJson('/api/verify-batch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({buyers:payload})});if(d.status==='success'){d.results.forEach(x=>renderStatusCell(x.index,x.result));bar.style.width='100%';pct.innerText='100%';txt.innerText='Batch verification complete.';}}catch(e){txt.innerText='Batch verification encountered an error.'}finally{btn.disabled=false;setTimeout(()=>w.classList.add('d-none'),2500);}}
+function selectBuyer(i){const b=currentBuyers[i];if(!b)return;document.getElementById('targetEmail').value=b.email||'';document.getElementById('targetCompany').value=b.company||'';document.getElementById('statusAlert').innerHTML=`<span class="text-primary">Selected: ${esc(b.company)}</span>`;document.getElementById('emailForm').scrollIntoView({behavior:'smooth',block:'start'});}
+async function handleSendEmail(e){e.preventDefault();const btn=document.getElementById('sendBtn'),status=document.getElementById('statusAlert'),form=document.getElementById('emailForm');btn.disabled=true;status.innerHTML='<span class="text-secondary"><span class="spinner-border spinner-border-sm me-1"></span> Queuing SMTP worker...</span>';try{const d=await fetchJson('/api/send-email-async',{method:'POST',body:new FormData(form)});if(!d.task_id)throw new Error(d.message||'Email task could not be created.');const id=d.task_id;const timer=setInterval(async()=>{try{const pd=await fetchJson(`/api/task-status/${id}`);if(pd.status==='completed'){clearInterval(timer);btn.disabled=false;const ok=pd.delivery_status==='Delivered';status.innerHTML=`<span class="${ok?'text-success':'text-danger'}"><i class="bi ${ok?'bi-check-circle':'bi-exclamation-triangle'}"></i> ${esc(pd.message||'')}</span>`;loadAuditLogs();}else if(pd.status==='not_found'){clearInterval(timer);btn.disabled=false;status.innerHTML='<span class="text-danger">Background task lost.</span>';}}catch(x){console.error(x)}},800);}catch(x){status.innerHTML=`<span class="text-danger">${esc(x.message||'Dispatch failed to start.')}</span>`;btn.disabled=false;}}
+</script>
 </body>
 </html>
