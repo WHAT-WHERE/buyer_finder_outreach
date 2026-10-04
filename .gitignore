@@ -3,3 +3,4 @@ venv/
 __pycache__/
 *.pyc
 .venv/
+outreach_audit_log.csv
